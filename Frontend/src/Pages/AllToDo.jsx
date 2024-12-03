@@ -1,20 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, Loader } from "lucide-react";
-import { useTodo } from "@/context/TodoContext";
-import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { useGetAllTodosQuery } from "@/features/apis/todoApi";
 
 const AllToDo = () => {
   const navigate = useNavigate();
-  const { todos, getTodos, loading, error } = useTodo();
+  const { data, error, isError, isLoading } = useGetAllTodosQuery();
 
-  useEffect(() => {
-    getTodos();
-  }, []);
-
-  if (loading) return <Loader />;
-  if (error) return <p>{error}</p>;
+  if (isLoading) return <Loader />;
+  if (isError) return <p>{error.message}</p>;
   return (
     <>
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -32,8 +27,8 @@ const AllToDo = () => {
                 </tr>
               </thead>
               <tbody>
-                {todos?.length > 0 ? (
-                  todos?.map((task) => (
+                {data?.todos?.length > 0 ? (
+                  data?.todos?.map((task) => (
                     <tr key={task._id} className="hover:bg-gray-100">
                       <td className="p-4 border border-gray-300 relative">
                         {task.title}

@@ -12,12 +12,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import axios from "axios";
+import {
+  useGetSingletaskQuery,
+  useUpdateTodoMutation,
+} from "@/features/apis/todoApi";
+import { Loader2 } from "lucide-react";
 
 const EditTask = () => {
-  const { id } = useParams(); // Task ID from route params
-  const navigate = useNavigate(); // Navigation hook
-  const [task, setTask] = useState({});
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const [taskData, setTaskData] = useState({
     title: "",
     description: "",
@@ -25,64 +29,74 @@ const EditTask = () => {
     priority: "",
     dueDate: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch task details on component mount
-  const getTask = async () => {
-    try {
-      const { data } = await axios.get(
-        `http://localhost:4000/api/v1/todo/get/${id}`
-      );
-      if (data.success) {
-        setTask(data.todo);
-        setTaskData(data.todo); 
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Error fetching task");
-    }
-  };
+  const { data, isLoading: getTaskIsLoading, error,refetch } = useGetSingletaskQuery(id);
+  const [updateTodo, { isLoading, isSuccess, error: updateError }] = useUpdateTodoMutation();
+  const { todo } = data || {};
 
   useEffect(() => {
-    getTask();
-  }, [id]);
+    if (!id) {
+      toast.error("Invalid Task ID");
+      navigate("/todos");
+    }
+  }, [id, navigate]);
 
-  // Handle input change
+  useEffect(() => {
+    if (todo) {
+      setTaskData({
+        title: todo.title || "",
+        description: todo.description || "",
+        status: todo.status || "pending",
+        priority: todo.priority || "medium",
+        dueDate: todo.dueDate || "",
+      });
+    }
+  }, [todo]);
+
+  useEffect(() => {
+    if (isSuccess) {
+      toast.success("Task updated successfully");
+      navigate(`/view/${id}`);
+      refetch()
+    }
+  }, [isSuccess, navigate, id,refetch]);
+
+  useEffect(() => {
+    if (updateError) {
+      toast.error(updateError?.data?.message || "Failed to update task");
+    }
+  }, [updateError]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setTaskData({ ...taskData, [name]: value });
   };
 
-  // Handle dropdown change
   const handleDropdownChange = (key, value) => {
     setTaskData({ ...taskData, [key]: value });
   };
 
-  // Handle form submission to update task
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    try {
-      const { data } = await axios.put(
-        `http://localhost:4000/api/v1/todo/update/${id}`,
-        taskData
-      );
-      if (data.success) {
-        toast.success("Task updated successfully!");
-        navigate(`/view/${id}`); // Navigate to view page after successful update
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || "Error updating task");
-    } finally {
-      setIsLoading(false);
+  const handleUpdate = () => {
+    if (!taskData.title || !taskData.status) {
+      toast.error("Title and Status are required");
+      return;
     }
+    updateTodo({ id, data: taskData });
   };
+
+  if (getTaskIsLoading) return <Loader2 className="animate-spin" />;
+
+  if (error) {
+    return <p>{error?.data?.message || "An error occurred while fetching the task."}</p>;
+  }
+
+  if (!todo) return <p>No task data found.</p>;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-lg p-6 bg-white rounded-lg shadow-md">
         <h1 className="text-2xl font-bold text-center mb-6">Edit Task</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
+        <form className="space-y-4">
           <div>
             <Label htmlFor="title">Title</Label>
             <Input
@@ -95,8 +109,6 @@ const EditTask = () => {
               required
             />
           </div>
-
-          {/* Description */}
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -107,8 +119,6 @@ const EditTask = () => {
               placeholder="Enter Task Description"
             />
           </div>
-
-          {/* Status */}
           <div>
             <Label>Status</Label>
             <Select
@@ -125,8 +135,6 @@ const EditTask = () => {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Priority */}
           <div>
             <Label>Priority</Label>
             <Select
@@ -143,8 +151,6 @@ const EditTask = () => {
               </SelectContent>
             </Select>
           </div>
-
-          {/* Due Date */}
           <div>
             <Label htmlFor="dueDate">Due Date</Label>
             <Input
@@ -155,10 +161,8 @@ const EditTask = () => {
               onChange={handleChange}
             />
           </div>
-
-          {/* Submit and Cancel Buttons */}
           <div className="text-center flex gap-4 items-center justify-center">
-            <Button type="submit" disabled={isLoading}>
+            <Button onClick={handleUpdate} disabled={isLoading}>
               {isLoading ? "Saving..." : "Save Changes"}
             </Button>
             <Link to={`/view/${id}`}>

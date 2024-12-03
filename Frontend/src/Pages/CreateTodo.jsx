@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,14 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import axios from "axios";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useAddTodoMutation } from "@/features/apis/todoApi";
 
 const CreateTodo = () => {
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -26,6 +25,9 @@ const CreateTodo = () => {
     priority: "",
     dueDate: "",
   });
+
+  const [addTodo, { data, isSuccess, isLoading, error, isError }] =
+    useAddTodoMutation();
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -36,34 +38,20 @@ const CreateTodo = () => {
     setFormData({ ...formData, [key]: value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.title || !formData.status || !formData.dueDate) {
-      toast.error("Please fill in all required fields!");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      const { data } = await axios.post(
-        "http://localhost:4000/api/v1/todo/create",
-        formData
-      );
-      if (data.success) {
-        toast.success(data.message);
-        navigate("/todos");
-      }
-    } catch (error) {
-      const errorMessage = error.response?.data?.message || "Error in creating task";
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleAddTodo = async () => {
+    await addTodo(formData);
   };
-   
-  if(error) return <p>{error}</p>
+
+  useEffect(() => {
+    if (data && isSuccess) {
+      toast.success(data?.message || "Task Added");
+      navigate('/todos')
+    }
+    if (isError && error) {
+      toast.error(error?.response?.data.message || "Error in added task");
+    }
+  }, [error, isError, isSuccess]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100">
       <div className="w-full max-w-lg p-6 bg-white rounded-lg shadow-md">
@@ -75,7 +63,7 @@ const CreateTodo = () => {
           View All Tasks
         </Button>
         <h1 className="text-2xl font-bold text-center mb-6">Create Task</h1>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form className="space-y-4">
           {/* Title */}
           <div>
             <Label htmlFor="title">Title</Label>
@@ -152,7 +140,11 @@ const CreateTodo = () => {
 
           {/* Submit Button */}
           <div className="text-center">
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button
+              onClick={handleAddTodo}
+              className="w-full"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <Loader2 className="mr-2 w-4 h-4 animate-spin" />
               ) : (

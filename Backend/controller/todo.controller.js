@@ -46,8 +46,8 @@ export const removeTodo = async (req, res) => {
 
 export const getAllTodo = async (req, res) => {
   try {
-    const todos = await Todo.find()
-    if (todos.length === 0) {
+    const todos = await Todo.find().sort({ createdAt: -1 });
+    if (todos.length === 0) { 
       return res.status(200).json({
         message: "No task added",
         succes: true,
